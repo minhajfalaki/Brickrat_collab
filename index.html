@@ -147,6 +147,76 @@
       color: rgba(255,255,255,0.55);
       pointer-events: none;
     }
+
+    /* ── Mobile / desktop prompt switching ─────────────────────── */
+    .mobile-only  { display: none; }
+    .desktop-only { display: block; }
+    @media (pointer: coarse) {
+      .mobile-only  { display: block; }
+      .desktop-only { display: none;  }
+    }
+
+    /* ── Virtual joystick ──────────────────────────────────────── */
+    #joystick-base {
+      display: none;          /* shown in JS when touch starts */
+      position: fixed;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      pointer-events: none;   /* visuals only — canvas handles touch */
+      z-index: 200;
+    }
+
+    #joystick-knob {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.55);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    /* ── Fullscreen button ─────────────────────────────────────── */
+    #btnFullscreen {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.38);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      padding: 0;
+      touch-action: manipulation;
+    }
+
+    #btnFullscreen svg {
+      width: 22px;
+      height: 22px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    #btnFullscreen .fs-compress { display: none; }
+
+    /* ── Prevent browser scroll/zoom on the canvas ─────────────── */
+    canvas { touch-action: none; }
   </style>
 </head>
 <body>
@@ -166,14 +236,23 @@
   <div id="clickPrompt" class="overlay">
     <div class="prompt-box">
       <h2>Ready to Explore</h2>
-      <p>Click anywhere to start the walkthrough</p>
-      <br>
-      <p>
+
+      <!-- Desktop instructions -->
+      <p class="desktop-only">Click anywhere to start the walkthrough</p>
+      <br class="desktop-only">
+      <p class="desktop-only">
         <kbd>W A S D</kbd> or <kbd>↑ ← ↓ →</kbd> &nbsp;Move
         &nbsp;&nbsp;|&nbsp;&nbsp;
         Mouse &nbsp;Look
         &nbsp;&nbsp;|&nbsp;&nbsp;
         <kbd>Esc</kbd> &nbsp;Release cursor
+      </p>
+
+      <!-- Mobile instructions -->
+      <p class="mobile-only">Tap anywhere to start the walkthrough</p>
+      <br class="mobile-only">
+      <p class="mobile-only" style="color:rgba(255,255,255,0.75);font-size:14px;line-height:1.7;">
+        Left side &nbsp;&#8594;&nbsp; Move &nbsp;&nbsp;|&nbsp;&nbsp; Right side &nbsp;&#8594;&nbsp; Look
       </p>
     </div>
   </div>
@@ -184,6 +263,28 @@
   <!-- Esc hint -->
   <div id="escHint">Press Esc to release cursor</div>
 
+  <!-- Virtual joystick (mobile only — shown/hidden by MobileControls.js) -->
+  <div id="joystick-base">
+    <div id="joystick-knob"></div>
+  </div>
+
+  <!-- Fullscreen toggle button -->
+  <button id="btnFullscreen" title="Toggle fullscreen" aria-label="Toggle fullscreen">
+    <!-- Expand icon (default) -->
+    <svg class="fs-expand" viewBox="0 0 24 24">
+      <path d="M8 3H5a2 2 0 00-2 2v3"/>
+      <path d="M21 8V5a2 2 0 00-2-2h-3"/>
+      <path d="M3 16v3a2 2 0 002 2h3"/>
+      <path d="M16 21h3a2 2 0 002-2v-3"/>
+    </svg>
+    <!-- Compress icon (shown when fullscreen) -->
+    <svg class="fs-compress" viewBox="0 0 24 24">
+      <path d="M8 3v5H3"/>
+      <path d="M21 8h-5V3"/>
+      <path d="M3 16h5v5"/>
+      <path d="M16 21v-5h5"/>
+    </svg>
+  </button>
 
   <script type="module" src="main.js"></script>
 

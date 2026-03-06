@@ -15,7 +15,13 @@ const MAX_PITCH       =  Math.PI * 0.42; // ~75° up
 const FLOOR_PROBE_ABOVE = 0.1;
 
 export class FirstPersonController {
-  constructor(camera, domElement) {
+  /**
+   * @param {THREE.Camera} camera
+   * @param {HTMLElement}  domElement  - the renderer's canvas
+   * @param {object}       [opts]
+   * @param {boolean}      [opts.isMobile=false]  - skip pointer-lock/keyboard setup
+   */
+  constructor(camera, domElement, { isMobile = false } = {}) {
     this.camera     = camera;
     this.domElement = domElement;
 
@@ -26,7 +32,7 @@ export class FirstPersonController {
     // Keyboard state: e.code → boolean
     this.keyState = {};
 
-    // Pointer lock state
+    // Pointer lock state (desktop) / active state (mobile)
     this.isLocked = false;
 
     // Last confirmed floor Y (foot level, not eye level)
@@ -49,8 +55,13 @@ export class FirstPersonController {
     // Covers EYE_HEIGHT (1.65) + FLOOR_PROBE_ABOVE (0.1) + extra descent buffer (2.5).
     this._downRay.far = EYE_HEIGHT + FLOOR_PROBE_ABOVE + 2.5;
 
-    this._setupPointerLock();
-    this._setupKeyboard();
+    // Mobile controls reference (set via setMobileMode)
+    this._mobile = null;
+
+    if (!isMobile) {
+      this._setupPointerLock();
+      this._setupKeyboard();
+    }
   }
 
   // ------------------------------------------------------------------
@@ -84,6 +95,16 @@ export class FirstPersonController {
   }
 
   /**
+   * Activate mobile input mode. Pass a MobileControls instance.
+   * After this call the controller reads joystick + touch-look instead of
+   * keyboard + pointer-lock mouse, and isLocked must be set externally
+   * (main.js sets it to true when the user taps "Tap to explore").
+   */
+  setMobileMode(mobileControls) {
+    this._mobile = mobileControls;
+  }
+
+  /**
    * Main update — call every frame with elapsed seconds.
    */
   update(dt) {
@@ -93,7 +114,11 @@ export class FirstPersonController {
 
     if (!this.isLocked) return;
 
-    this._applyMovement(dt);
+    if (this._mobile) {
+      this._applyMobileMovement(dt);
+    } else {
+      this._applyMovement(dt);
+    }
   }
 
   // ------------------------------------------------------------------
@@ -222,5 +247,63 @@ export class FirstPersonController {
     );
     const hits = this._downRay.intersectObjects(this._meshes, false);
     return hits.length > 0 ? hits[0].point.y : null;
+  }
+
+  // ------------------------------------------------------------------
+  //  Mobile movement (replaces _applyMovement when _mobile is set)
+  // ------------------------------------------------------------------
+
+  _applyMobileMovement(dt) {
+    // Apply accumulated look delta from touch drag
+    const { dx, dy } = this._mobile.consumeLookDelta();
+    const sens = this._mobile.getLookSensitivity();
+    this.yaw   -= dx * sens;
+    this.pitch -= dy * sens;
+    this.pitch  = Math.max(MIN_PITCH, Math.min(MAX_PITCH, this.pitch));
+
+    // Read joystick input
+    const { x: jx, z: jz } = this._mobile.getMoveInput();
+    const currentFootY = this.camera.position.y - EYE_HEIGHT;
+
+    if (Math.abs(jx) > 0.04 || Math.abs(jz) > 0.04) {
+      // Build a horizontal movement vector in world space
+      // Joystick: right=+x, down=+z (same convention as WASD)
+      const inputDir = new THREE.Vector3(jx, 0, jz);
+      inputDir.normalize();
+
+      const yawQuat = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 1, 0), this.yaw
+      );
+      inputDir.applyQuaternion(yawQuat);
+      inputDir.multiplyScalar(MOVE_SPEED * dt);
+
+      const targetX = this.camera.position.x + inputDir.x;
+      const targetZ = this.camera.position.z + inputDir.z;
+
+      const newFloorY = this._probeFloor(targetX, targetZ);
+
+      this.camera.position.x = targetX;
+      this.camera.position.z = targetZ;
+
+      if (newFloorY !== null) {
+        const stepDiff = newFloorY - currentFootY;
+        if (stepDiff <= MAX_STEP_UP) {
+          this.lastGroundY = newFloorY;
+        }
+      }
+    } else {
+      // Standing still — re-probe floor for gentle slopes / descents
+      const floorY = this._probeFloor(
+        this.camera.position.x,
+        this.camera.position.z
+      );
+      if (floorY !== null) {
+        if (floorY - currentFootY <= MAX_STEP_UP) {
+          this.lastGroundY = floorY;
+        }
+      }
+    }
+
+    this.camera.position.y = this.lastGroundY + EYE_HEIGHT;
   }
 }

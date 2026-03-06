@@ -1,7 +1,13 @@
 import * as THREE from './lib/three/three.module.js';
 import { GLTFLoader }           from './lib/three/loaders/GLTFLoader.js';
 import { FirstPersonController } from './js/controls/FirstPersonControls.js';
+import { MobileControls }       from './js/controls/MobileControls.js';
 import { findStartPosition }    from './js/utils/findStartPosition.js';
+
+// ============================================================
+//  Device detection
+// ============================================================
+const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
 // ============================================================
 //  MODEL URL
@@ -77,7 +83,7 @@ document.body.appendChild(renderer.domElement);
 // ------------------------------------------------------------
 //  First-person controller
 // ------------------------------------------------------------
-const fpController = new FirstPersonController(camera, renderer.domElement);
+const fpController = new FirstPersonController(camera, renderer.domElement, { isMobile });
 
 // ------------------------------------------------------------
 //  Loading manager + progress ring
@@ -125,6 +131,22 @@ setTimeout(() => {
     if (clickPrompt) clickPrompt.style.display = 'flex';
   }
 }, 30000);
+
+// ------------------------------------------------------------
+//  Mobile controls init
+// ------------------------------------------------------------
+if (isMobile) {
+  const mobileControls = new MobileControls(renderer.domElement);
+  fpController.setMobileMode(mobileControls);
+
+  // On mobile there is no pointer lock — tapping the prompt activates the controller
+  if (clickPrompt) {
+    clickPrompt.addEventListener('click', () => {
+      clickPrompt.style.display = 'none';
+      fpController.isLocked = true;
+    });
+  }
+}
 
 // ------------------------------------------------------------
 //  GLTF / GLB loader
