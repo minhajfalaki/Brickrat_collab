@@ -16,7 +16,8 @@ const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 //  Production → replace with the direct URL of your hosted GLB
 //               (GitHub Release asset, Cloudflare R2, etc.)
 // ============================================================
-const MODEL_URL = 'https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/model.glb';
+// const MODEL_URL = 'https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/model.glb';
+const MODEL_URL = 'https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/baked.glb';
 
 // ============================================================
 //  Eye-height constant (metres above floor)
