@@ -55,4 +55,13 @@ export function initVoice() {
     callObject.setLocalAudio(!nowMuted);
     btnMute.textContent = nowMuted ? 'Unmute' : 'Mute';
   });
+
+  window.addEventListener('keydown', e => {
+    if (e.code !== 'KeyV') return;
+    if (callObject) {
+      btnMute.click();
+    } else {
+      btnVoice.click();
+    }
+  });
 }
