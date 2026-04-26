@@ -3,7 +3,6 @@ import { GLTFLoader }           from './lib/three/loaders/GLTFLoader.js';
 import { FirstPersonController } from './js/controls/FirstPersonControls.js';
 import { MobileControls }       from './js/controls/MobileControls.js';
 import { findStartPosition }    from './js/utils/findStartPosition.js';
-import { initCollab, broadcastPosition } from './js/collab.js';
 
 // ============================================================
 //  Device detection
@@ -236,7 +235,11 @@ window.addEventListener('resize', () => {
 // ------------------------------------------------------------
 //  Animation loop
 // ------------------------------------------------------------
-initCollab(scene);
+let broadcastPosition = null;
+import('./js/collab.js').then(({ initCollab, broadcastPosition: bp }) => {
+  broadcastPosition = bp;
+  initCollab(scene);
+}).catch(err => console.warn('Collab unavailable:', err));
 
 const clock = new THREE.Clock();
 let fpsFrames = 0, fpsElapsed = 0;
@@ -261,7 +264,7 @@ function animate() {
   broadcastAccum += dt;
   if (broadcastAccum >= 0.15) {
     broadcastAccum = 0;
-    broadcastPosition(camera);
+    if (broadcastPosition) broadcastPosition(camera);
   }
 
   renderer.render(scene, camera);
