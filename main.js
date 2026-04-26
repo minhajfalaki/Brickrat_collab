@@ -3,6 +3,7 @@ import { GLTFLoader }           from './lib/three/loaders/GLTFLoader.js';
 import { FirstPersonController } from './js/controls/FirstPersonControls.js';
 import { MobileControls }       from './js/controls/MobileControls.js';
 import { findStartPosition }    from './js/utils/findStartPosition.js';
+import { initCollab, broadcastPosition } from './js/collab.js';
 
 // ============================================================
 //  Device detection
@@ -235,8 +236,11 @@ window.addEventListener('resize', () => {
 // ------------------------------------------------------------
 //  Animation loop
 // ------------------------------------------------------------
+initCollab(scene);
+
 const clock = new THREE.Clock();
 let fpsFrames = 0, fpsElapsed = 0;
+let broadcastAccum = 0;
 
 function animate() {
   requestAnimationFrame(animate);
@@ -253,6 +257,12 @@ function animate() {
   }
 
   fpController.update(dt);
+
+  broadcastAccum += dt;
+  if (broadcastAccum >= 0.15) {
+    broadcastAccum = 0;
+    broadcastPosition(camera);
+  }
 
   renderer.render(scene, camera);
 }
