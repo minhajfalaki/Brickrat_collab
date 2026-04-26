@@ -143,6 +143,8 @@ const manager = new THREE.LoadingManager(
       if (clickPrompt)    clickPrompt.style.display    = 'flex';
       if (btnGhost)       btnGhost.style.display       = 'flex';
       if (fpsCounter)     fpsCounter.style.display     = 'block';
+      _modelLoaded = true;
+      if (_initVoice) _initVoice();
     }, 400);
   },
   // onProgress
@@ -236,10 +238,18 @@ window.addEventListener('resize', () => {
 //  Animation loop
 // ------------------------------------------------------------
 let broadcastPosition = null;
+let _initVoice = null;
+let _modelLoaded = false;
+
 import('./js/collab.js').then(({ initCollab, broadcastPosition: bp }) => {
   broadcastPosition = bp;
   initCollab(scene);
 }).catch(err => console.warn('Collab unavailable:', err));
+
+import('./js/voice.js').then(({ initVoice }) => {
+  _initVoice = initVoice;
+  if (_modelLoaded) initVoice();
+}).catch(err => console.warn('Voice unavailable:', err));
 
 const clock = new THREE.Clock();
 let fpsFrames = 0, fpsElapsed = 0;
