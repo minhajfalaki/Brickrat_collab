@@ -1,29 +1,25 @@
 let callObject = null;
 const audioElements = new Map(); // sessionId → <audio>
-
-// Called immediately on tap to unblock audio on iOS (must be in gesture context)
-function primeAudioContext() {
-  const a = new Audio();
-  a.play().catch(() => {});
-}
+let unlockedAudio = null; // pre-created in gesture context to bypass autoplay policy
 
 function attachAudio(participant) {
   if (participant.local) return;
   const track = participant.tracks?.audio?.persistentTrack;
-  const sid   = participant.session_id;
-  console.log('[voice] attachAudio', sid, 'track:', track?.readyState, 'enabled:', track?.enabled);
-  if (!track) return;
+  if (!track || track.readyState !== 'live') return;
 
+  const sid = participant.session_id;
   let audio = audioElements.get(sid);
   if (!audio) {
-    audio = new Audio();
+    // Reuse the pre-unlocked element for the first remote participant
+    audio = unlockedAudio || new Audio();
+    unlockedAudio = null;
     audio.autoplay = true;
     audioElements.set(sid, audio);
   }
-  audio.srcObject = new MediaStream([track]);
-  audio.play()
-    .then(() => console.log('[voice] audio playing for', sid))
-    .catch(e => console.warn('[voice] audio.play() blocked:', e));
+  const stream = new MediaStream([track]);
+  if (audio.srcObject?.getTracks()[0] === track) return; // already attached
+  audio.srcObject = stream;
+  audio.play().catch(() => {});
 }
 
 export function initVoice() {
@@ -48,7 +44,10 @@ export function initVoice() {
     }
     if (!roomId) return;
 
-    primeAudioContext(); // unblock audio on iOS — must be first thing in tap handler
+    // Pre-create and unlock audio element inside the gesture — required on Android/iOS
+    unlockedAudio = new Audio();
+    unlockedAudio.autoplay = true;
+    unlockedAudio.play().catch(() => {});
 
     btnVoice.disabled = true;
     btnVoice.textContent = 'Connecting…';
@@ -56,33 +55,16 @@ export function initVoice() {
 
     callObject = window.Daily.createCallObject();
 
-    callObject.on('joined-meeting', (e) => {
-      console.log('[voice] joined-meeting', e);
-    });
-
-    callObject.on('participant-joined', (e) => {
-      console.log('[voice] participant-joined', e.participant.session_id, e.participant);
-      attachAudio(e.participant);
-    });
-
-    callObject.on('track-started', (e) => {
-      console.log('[voice] track-started kind:', e.track.kind, 'local:', e.participant.local, 'state:', e.track.readyState);
-      if (e.track.kind === 'audio' && !e.participant.local) {
-        attachAudio(e.participant);
-      }
-    });
-
-    callObject.on('participant-updated', (e) => {
-      if (!e.participant.local) attachAudio(e.participant);
-    });
+    callObject.on('participant-joined', (e) => attachAudio(e.participant));
+    callObject.on('track-started',      (e) => { if (!e.participant.local && e.track.kind === 'audio') attachAudio(e.participant); });
+    callObject.on('participant-updated',(e) => { if (!e.participant.local) attachAudio(e.participant); });
 
     callObject.on('participant-left', (e) => {
       const audio = audioElements.get(e.participant.session_id);
       if (audio) { audio.srcObject = null; audioElements.delete(e.participant.session_id); }
     });
 
-    callObject.on('camera-error', (e) => {
-      console.error('[voice] camera-error', e);
+    callObject.on('camera-error', () => {
       micDenied.textContent = 'Mic access denied';
       micDenied.style.display = 'block';
       btnVoice.style.display = 'block';
@@ -93,16 +75,9 @@ export function initVoice() {
       callObject = null;
     });
 
-    callObject.on('error', (e) => console.error('[voice] error', e));
-
     try {
-      await callObject.join({
-        url: `https://${domain}/${roomId}`,
-        videoSource: false
-      });
-      console.log('[voice] joined, participants:', callObject.participants());
+      await callObject.join({ url: `https://${domain}/${roomId}`, videoSource: false });
       Object.values(callObject.participants()).forEach(attachAudio);
-
       btnVoice.style.display = 'none';
       btnMute.style.display  = 'block';
     } catch (e) {
@@ -124,10 +99,6 @@ export function initVoice() {
 
   window.addEventListener('keydown', e => {
     if (e.code !== 'KeyV') return;
-    if (callObject) {
-      btnMute.click();
-    } else {
-      btnVoice.click();
-    }
+    if (callObject) { btnMute.click(); } else { btnVoice.click(); }
   });
 }
