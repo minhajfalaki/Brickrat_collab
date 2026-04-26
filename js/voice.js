@@ -1,4 +1,24 @@
 let callObject = null;
+const audioElements = new Map(); // sessionId → <audio>
+
+function attachAudio(participant) {
+  if (participant.local) return;
+  const track = participant.tracks?.audio?.persistentTrack;
+  if (!track) return;
+
+  const sid = participant.session_id;
+  let audio = audioElements.get(sid);
+  if (!audio) {
+    audio = new Audio();
+    audio.autoplay = true;
+    audioElements.set(sid, audio);
+  }
+  const stream = new MediaStream([track]);
+  if (audio.srcObject !== stream) {
+    audio.srcObject = stream;
+    audio.play().catch(e => console.warn('audio play blocked:', e));
+  }
+}
 
 export function initVoice() {
   const domain = window.CONFIG?.dailyDomain;
@@ -18,7 +38,6 @@ export function initVoice() {
     if (!window.Daily) {
       micDenied.textContent = 'Voice SDK failed to load';
       micDenied.style.display = 'block';
-      console.error('Daily.co SDK not available — check CDN script in index.html');
       return;
     }
     if (!roomId) return;
@@ -41,11 +60,31 @@ export function initVoice() {
       callObject = null;
     });
 
+    // Attach audio whenever a remote track becomes available
+    callObject.on('track-started', (e) => {
+      if (e.track.kind === 'audio' && !e.participant.local) {
+        attachAudio(e.participant);
+      }
+    });
+
+    callObject.on('participant-updated', (e) => {
+      if (!e.participant.local) attachAudio(e.participant);
+    });
+
+    callObject.on('participant-left', (e) => {
+      const audio = audioElements.get(e.participant.session_id);
+      if (audio) { audio.srcObject = null; audioElements.delete(e.participant.session_id); }
+    });
+
     try {
       await callObject.join({
         url: `https://${domain}/${roomId}`,
         videoSource: false
       });
+
+      // Attach any participants already in the room
+      Object.values(callObject.participants()).forEach(attachAudio);
+
       btnVoice.style.display = 'none';
       btnMute.style.display  = 'block';
     } catch (e) {
