@@ -9,25 +9,17 @@ const PIN_COLORS = [0xee4444, 0x44cc55, 0x4499ff, 0xff8822]; // red, green, blue
 let _colorIndex = 0;
 const peerColors = new Map(); // connectionId → color
 
+const sphereGeo = new THREE.SphereGeometry(0.19, 32, 24);
+
 function createPinMesh(color) {
   const mat = new THREE.MeshStandardMaterial({
-    color, roughness: 0.6,
+    color, roughness: 0.4, metalness: 0.1,
     transparent: true, opacity: 0.82,
     emissive: new THREE.Color(0xffdd44), emissiveIntensity: 0
   });
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 7), mat);
-  head.position.y = 0.15;
-
-  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.28, 8), mat);
-  tail.rotation.x = Math.PI; // tip points down
-  tail.position.y = 0.02;
-
-  const group = new THREE.Group();
-  group.add(head, tail);
-  group.scale.setScalar(0.75);
-  group.userData.mat = mat;
-  return group;
+  const mesh = new THREE.Mesh(sphereGeo, mat);
+  mesh.userData.mat = mat;
+  return mesh;
 }
 
 function getOrCreateRoomId() {
