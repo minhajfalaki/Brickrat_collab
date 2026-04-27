@@ -22,20 +22,7 @@ function createPinMesh(color) {
   return mesh;
 }
 
-function getOrCreateRoomId() {
-  const params = new URLSearchParams(window.location.search);
-  let id = params.get('room');
-  if (!id) {
-    id = Math.random().toString(36).slice(2, 8);
-    params.set('room', id);
-    window.location.replace(window.location.pathname + '?' + params.toString());
-    return null;
-  }
-  return id;
-}
-
-export function initCollab(scene) {
-  const roomId = getOrCreateRoomId();
+export function initCollab(scene, roomId) {
   if (!roomId) return;
 
   const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });

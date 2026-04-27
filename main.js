@@ -92,6 +92,7 @@ const fpController = new FirstPersonController(camera, renderer.domElement, { is
 const loadingOverlay   = document.getElementById('loadingOverlay');
 const clickPrompt      = document.getElementById('clickPrompt');
 const btnGhost         = document.getElementById('btnGhost');
+const btnCallFloat     = document.getElementById('btnCallFloat');
 const fpsCounter       = document.getElementById('fpsCounter');
 const progressText     = document.getElementById('progressText');
 const progressCircle   = document.querySelector('.progress-ring__circle');
@@ -142,6 +143,7 @@ const manager = new THREE.LoadingManager(
       if (loadingOverlay) loadingOverlay.style.display = 'none';
       if (clickPrompt)    clickPrompt.style.display    = 'flex';
       if (btnGhost)       btnGhost.style.display       = 'flex';
+      if (btnCallFloat)   btnCallFloat.style.display   = 'flex';
       if (fpsCounter)     fpsCounter.style.display     = 'block';
       _modelLoaded = true;
       if (_initVoice) _initVoice();
@@ -240,16 +242,123 @@ window.addEventListener('resize', () => {
 let broadcastPosition = null;
 let _initVoice = null;
 let _modelLoaded = false;
+let activeRoomId = null;
 
-import('./js/collab.js').then(({ initCollab, broadcastPosition: bp }) => {
-  broadcastPosition = bp;
-  initCollab(scene);
-}).catch(err => console.warn('Collab unavailable:', err));
+function generateRoomId() {
+  return Math.random().toString(36).slice(2, 8);
+}
+
+function parseRoomId(input) {
+  input = input.trim();
+  try {
+    const url = new URL(input);
+    return url.searchParams.get('room') || input;
+  } catch {
+    return input;
+  }
+}
 
 import('./js/voice.js').then(({ initVoice }) => {
   _initVoice = initVoice;
   if (_modelLoaded) initVoice();
 }).catch(err => console.warn('Voice unavailable:', err));
+
+// ── Call UI wiring ──────────────────────────────────────────
+{
+  const btnCreateCall      = document.getElementById('btnCreateCall');
+  const btnJoinCall        = document.getElementById('btnJoinCall');
+  const shareRow           = document.getElementById('shareRow');
+  const joinRow            = document.getElementById('joinRow');
+  const roomIdDisplay      = document.getElementById('roomIdDisplay');
+  const btnCopyLink        = document.getElementById('btnCopyLink');
+  const joinInput          = document.getElementById('joinInput');
+  const btnDoJoin          = document.getElementById('btnDoJoin');
+
+  const btnCreateCallModal = document.getElementById('btnCreateCallModal');
+  const btnJoinCallModal   = document.getElementById('btnJoinCallModal');
+  const shareRowModal      = document.getElementById('shareRowModal');
+  const joinRowModal       = document.getElementById('joinRowModal');
+  const roomIdDisplayModal = document.getElementById('roomIdDisplayModal');
+  const btnCopyLinkModal   = document.getElementById('btnCopyLinkModal');
+  const joinInputModal     = document.getElementById('joinInputModal');
+  const btnDoJoinModal     = document.getElementById('btnDoJoinModal');
+
+  const callModal          = document.getElementById('callModal');
+
+  function setRoomId(id) {
+    activeRoomId = id;
+    if (roomIdDisplay)      roomIdDisplay.textContent      = id;
+    if (roomIdDisplayModal) roomIdDisplayModal.textContent = id;
+  }
+
+  function onCreateCall(shareRowEl, btnCreate, btnJoin) {
+    const id = generateRoomId();
+    setRoomId(id);
+    if (shareRowEl) shareRowEl.style.display = 'flex';
+    if (btnCreate)  btnCreate.style.display  = 'none';
+    if (btnJoin)    btnJoin.style.display    = 'none';
+  }
+
+  function onJoinCall(joinRowEl, btnCreate, btnJoin) {
+    if (joinRowEl) joinRowEl.style.display = 'flex';
+    if (btnCreate) btnCreate.style.display = 'none';
+    if (btnJoin)   btnJoin.style.display   = 'none';
+  }
+
+  function onDoJoin(inputEl, shareRowEl, joinRowEl) {
+    const id = parseRoomId(inputEl.value);
+    if (!id) return;
+    setRoomId(id);
+    if (shareRowEl) shareRowEl.style.display = 'flex';
+    if (joinRowEl)  joinRowEl.style.display  = 'none';
+  }
+
+  function onCopyLink(btn) {
+    if (!activeRoomId) return;
+    const url = window.location.origin + window.location.pathname + '?room=' + activeRoomId;
+    navigator.clipboard.writeText(url).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+  }
+
+  if (btnCreateCall) btnCreateCall.addEventListener('click', e => {
+    e.stopPropagation();
+    onCreateCall(shareRow, btnCreateCall, btnJoinCall);
+  });
+  if (btnJoinCall) btnJoinCall.addEventListener('click', e => {
+    e.stopPropagation();
+    onJoinCall(joinRow, btnCreateCall, btnJoinCall);
+  });
+  if (btnDoJoin) btnDoJoin.addEventListener('click', e => {
+    e.stopPropagation();
+    onDoJoin(joinInput, shareRow, joinRow);
+  });
+  if (btnCopyLink) btnCopyLink.addEventListener('click', e => {
+    e.stopPropagation();
+    onCopyLink(btnCopyLink);
+  });
+  if (joinInput) joinInput.addEventListener('click', e => e.stopPropagation());
+
+  if (btnCreateCallModal) btnCreateCallModal.addEventListener('click', () =>
+    onCreateCall(shareRowModal, btnCreateCallModal, btnJoinCallModal));
+  if (btnJoinCallModal) btnJoinCallModal.addEventListener('click', () =>
+    onJoinCall(joinRowModal, btnCreateCallModal, btnJoinCallModal));
+  if (btnDoJoinModal) btnDoJoinModal.addEventListener('click', () =>
+    onDoJoin(joinInputModal, shareRowModal, joinRowModal));
+  if (btnCopyLinkModal) btnCopyLinkModal.addEventListener('click', () =>
+    onCopyLink(btnCopyLinkModal));
+
+  if (btnCallFloat && callModal) {
+    btnCallFloat.addEventListener('click', () => {
+      callModal.style.display = callModal.style.display === 'flex' ? 'none' : 'flex';
+    });
+    callModal.addEventListener('click', e => {
+      if (e.target === callModal) callModal.style.display = 'none';
+    });
+  }
+}
 
 const clock = new THREE.Clock();
 let fpsFrames = 0, fpsElapsed = 0;
