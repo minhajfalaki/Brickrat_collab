@@ -146,7 +146,6 @@ const manager = new THREE.LoadingManager(
       if (btnCallFloat)   btnCallFloat.style.display   = 'flex';
       if (fpsCounter)     fpsCounter.style.display     = 'block';
       _modelLoaded = true;
-      if (_initVoice) _initVoice();
     }, 400);
   },
   // onProgress
@@ -218,6 +217,7 @@ loader.load(
 
     // Register scene meshes for floor raycasting
     fpController.setScene(gltf.scene);
+    _sceneReady = true;
   },
   undefined,
   err => {
@@ -241,7 +241,10 @@ window.addEventListener('resize', () => {
 // ------------------------------------------------------------
 let broadcastPosition = null;
 let _initVoice = null;
+let _initCollab = null;
 let _modelLoaded = false;
+let _voiceInited = false;
+let _sceneReady = false;
 let activeRoomId = null;
 
 function generateRoomId() {
@@ -260,8 +263,23 @@ function parseRoomId(input) {
 
 import('./js/voice.js').then(({ initVoice }) => {
   _initVoice = initVoice;
-  if (_modelLoaded) initVoice();
 }).catch(err => console.warn('Voice unavailable:', err));
+
+import('./js/collab.js').then(({ initCollab, broadcastPosition: bp }) => {
+  _initCollab = initCollab;
+  broadcastPosition = bp;
+  if (activeRoomId) initCollab(scene, activeRoomId);
+}).catch(err => console.warn('Collab unavailable:', err));
+
+function activateRoom(roomId) {
+  activeRoomId = roomId;
+  window.CONFIG.dailyRoom = roomId;
+  if (_initCollab) _initCollab(scene, roomId);
+  if (_modelLoaded && !_voiceInited) {
+    _voiceInited = true;
+    if (_initVoice) _initVoice();
+  }
+}
 
 // ── Call UI wiring ──────────────────────────────────────────
 {
@@ -286,7 +304,7 @@ import('./js/voice.js').then(({ initVoice }) => {
   const callModal          = document.getElementById('callModal');
 
   function setRoomId(id) {
-    activeRoomId = id;
+    activateRoom(id);
     if (roomIdDisplay)      roomIdDisplay.textContent      = id;
     if (roomIdDisplayModal) roomIdDisplayModal.textContent = id;
   }
