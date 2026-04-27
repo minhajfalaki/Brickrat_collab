@@ -85,13 +85,9 @@ export function initVoice() {
 
     callObject.on('participant-joined', (e) => attachAudio(e.participant));
     callObject.on('track-started',      (e) => { if (!e.participant.local && e.track.kind === 'audio') attachAudio(e.participant); });
-    callObject.on('participant-updated', (e) => {
-      if (e.participant.local) {
-        handleLocalAudioLevel(e.participant.audioLevel ?? 0);
-      } else {
-        attachAudio(e.participant);
-      }
-    });
+    callObject.on('participant-updated', (e) => { if (!e.participant.local) attachAudio(e.participant); });
+
+    callObject.on('local-audio-level',  (e) => handleLocalAudioLevel(e.audioLevel ?? 0));
 
     callObject.on('participant-left', (e) => {
       const audio = audioElements.get(e.participant.session_id);
@@ -105,7 +101,7 @@ export function initVoice() {
       btnVoice.disabled = false;
       btnVoice.textContent = 'Join Voice';
       btnMute.style.display = 'none';
-      handleLocalAudioLevel(0); // clear speaking state
+      handleLocalAudioLevel(0);
       callObject.destroy();
       callObject = null;
     });
@@ -113,6 +109,7 @@ export function initVoice() {
     try {
       await callObject.join({ url: `https://${domain}/${roomId}`, videoSource: false });
       Object.values(callObject.participants()).forEach(attachAudio);
+      callObject.startLocalAudioLevelObserver(100);
       btnVoice.style.display = 'none';
       btnMute.style.display  = 'block';
     } catch (e) {
