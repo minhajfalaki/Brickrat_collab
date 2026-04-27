@@ -257,8 +257,7 @@ function parseRoomId(input) {
     const url = new URL(input);
     return url.searchParams.get('room') || input;
   } catch {
-    const m = input.match(/[?&]room=([^&]+)/);
-    return m ? m[1] : input;
+    return input;
   }
 }
 
@@ -335,25 +334,11 @@ function activateRoom(roomId) {
   function onCopyLink(btn) {
     if (!activeRoomId) return;
     const url = window.location.origin + window.location.pathname + '?room=' + activeRoomId;
-    const flashCopied = () => {
+    navigator.clipboard.writeText(url).then(() => {
       const orig = btn.textContent;
       btn.textContent = 'Copied!';
       setTimeout(() => { btn.textContent = orig; }, 1500);
-    };
-    const execFallback = () => {
-      const ta = document.createElement('textarea');
-      ta.value = url;
-      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
-      document.body.appendChild(ta);
-      ta.focus(); ta.select();
-      try { document.execCommand('copy'); flashCopied(); } catch {}
-      document.body.removeChild(ta);
-    };
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(flashCopied).catch(execFallback);
-    } else {
-      execFallback();
-    }
+    });
   }
 
   if (btnCreateCall) btnCreateCall.addEventListener('click', e => {
@@ -372,9 +357,7 @@ function activateRoom(roomId) {
     e.stopPropagation();
     onCopyLink(btnCopyLink);
   });
-  if (joinInput)  joinInput.addEventListener('click',  e => e.stopPropagation());
-  if (shareRow)   shareRow.addEventListener('click',   e => e.stopPropagation());
-  if (joinRow)    joinRow.addEventListener('click',    e => e.stopPropagation());
+  if (joinInput) joinInput.addEventListener('click', e => e.stopPropagation());
 
   if (btnCreateCallModal) btnCreateCallModal.addEventListener('click', () =>
     onCreateCall(shareRowModal, btnCreateCallModal, btnJoinCallModal));
@@ -386,16 +369,11 @@ function activateRoom(roomId) {
     onCopyLink(btnCopyLinkModal));
 
   if (btnCallFloat && callModal) {
-    const toggleCallModal = () => {
-      if (document.pointerLockElement) document.exitPointerLock();
+    btnCallFloat.addEventListener('click', () => {
       callModal.style.display = callModal.style.display === 'flex' ? 'none' : 'flex';
-    };
-    btnCallFloat.addEventListener('click', toggleCallModal);
+    });
     callModal.addEventListener('click', e => {
       if (e.target === callModal) callModal.style.display = 'none';
-    });
-    window.addEventListener('keydown', e => {
-      if (e.code === 'KeyC' && !e.target.matches('input, textarea')) toggleCallModal();
     });
   }
 }
