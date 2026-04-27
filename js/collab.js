@@ -2,14 +2,33 @@ import * as THREE from '../lib/three/three.module.js';
 import { createClient } from 'https://esm.sh/@liveblocks/client@2';
 
 let room = null;
-const peerSpheres = new Map(); // connectionId → Mesh
+const peerPins = new Map();  // connectionId → Group
 let _lastPos = null, _lastRot = null;
 
-const sphereGeo = new THREE.SphereGeometry(0.25, 12, 8);
-const sphereMat = new THREE.MeshStandardMaterial({
-  color: 0xff6b35, roughness: 0.7,
-  emissive: new THREE.Color(0xffdd44), emissiveIntensity: 0
-});
+const PIN_COLORS = [0xee4444, 0x44cc55, 0x4499ff, 0xff8822]; // red, green, blue, orange
+let _colorIndex = 0;
+const peerColors = new Map(); // connectionId → color
+
+function createPinMesh(color) {
+  const mat = new THREE.MeshStandardMaterial({
+    color, roughness: 0.6,
+    transparent: true, opacity: 0.82,
+    emissive: new THREE.Color(0xffdd44), emissiveIntensity: 0
+  });
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 7), mat);
+  head.position.y = 0.15;
+
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.28, 8), mat);
+  tail.rotation.x = Math.PI; // tip points down
+  tail.position.y = 0.02;
+
+  const group = new THREE.Group();
+  group.add(head, tail);
+  group.scale.setScalar(0.75);
+  group.userData.mat = mat;
+  return group;
+}
 
 function getOrCreateRoomId() {
   const params = new URLSearchParams(window.location.search);
@@ -25,7 +44,7 @@ function getOrCreateRoomId() {
 
 export function initCollab(scene) {
   const roomId = getOrCreateRoomId();
-  if (!roomId) return; // page is redirecting
+  if (!roomId) return;
 
   const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
   const { room: r } = client.enterRoom(roomId, {
@@ -36,10 +55,10 @@ export function initCollab(scene) {
   room.subscribe('others', (others) => {
     const activeIds = new Set(others.map(o => o.connectionId));
 
-    for (const [id, mesh] of peerSpheres) {
+    for (const [id, pin] of peerPins) {
       if (!activeIds.has(id)) {
-        scene.remove(mesh);
-        peerSpheres.delete(id);
+        scene.remove(pin);
+        peerPins.delete(id);
       }
     }
 
@@ -47,14 +66,17 @@ export function initCollab(scene) {
       const p = other.presence?.position;
       if (!p) continue;
 
-      let mesh = peerSpheres.get(other.connectionId);
-      if (!mesh) {
-        mesh = new THREE.Mesh(sphereGeo, sphereMat.clone());
-        scene.add(mesh);
-        peerSpheres.set(other.connectionId, mesh);
+      let pin = peerPins.get(other.connectionId);
+      if (!pin) {
+        if (!peerColors.has(other.connectionId)) {
+          peerColors.set(other.connectionId, PIN_COLORS[_colorIndex++ % PIN_COLORS.length]);
+        }
+        pin = createPinMesh(peerColors.get(other.connectionId));
+        scene.add(pin);
+        peerPins.set(other.connectionId, pin);
       }
-      mesh.position.set(p.x, p.y, p.z);
-      mesh.material.emissiveIntensity = other.presence?.speaking ? 1.0 : 0;
+      pin.position.set(p.x, p.y, p.z);
+      pin.userData.mat.emissiveIntensity = other.presence?.speaking ? 1.0 : 0;
     }
   });
 }
@@ -70,7 +92,6 @@ export function broadcastPosition(camera) {
   const { x, y, z } = camera.position;
   const ry = camera.rotation.y;
 
-  // Skip if position hasn't meaningfully changed (1mm / 0.001 rad threshold)
   const px = Math.round(x * 1000), py = Math.round(y * 1000), pz = Math.round(z * 1000);
   const pr = Math.round(ry * 1000);
   if (_lastPos && _lastPos[0] === px && _lastPos[1] === py && _lastPos[2] === pz && _lastRot === pr) return;
