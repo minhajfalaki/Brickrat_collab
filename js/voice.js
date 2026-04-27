@@ -1,6 +1,34 @@
+import { setSpeaking } from './collab.js';
+
 let callObject = null;
 const audioElements = new Map(); // sessionId → <audio>
 let unlockedAudio = null; // pre-created in gesture context to bypass autoplay policy
+
+let _speaking = false;
+let _speakingOnset = null;
+
+function handleLocalAudioLevel(level) {
+  if (level > 0.01) {
+    if (!_speaking) {
+      if (!_speakingOnset) {
+        _speakingOnset = Date.now();
+      } else if (Date.now() - _speakingOnset >= 200) {
+        _speaking = true;
+        setSpeaking(true);
+        const el = document.getElementById('speakingIndicator');
+        if (el) el.style.display = 'inline';
+      }
+    }
+  } else {
+    _speakingOnset = null;
+    if (_speaking) {
+      _speaking = false;
+      setSpeaking(false);
+      const el = document.getElementById('speakingIndicator');
+      if (el) el.style.display = 'none';
+    }
+  }
+}
 
 function attachAudio(participant) {
   if (participant.local) return;
@@ -57,7 +85,13 @@ export function initVoice() {
 
     callObject.on('participant-joined', (e) => attachAudio(e.participant));
     callObject.on('track-started',      (e) => { if (!e.participant.local && e.track.kind === 'audio') attachAudio(e.participant); });
-    callObject.on('participant-updated',(e) => { if (!e.participant.local) attachAudio(e.participant); });
+    callObject.on('participant-updated', (e) => {
+      if (e.participant.local) {
+        handleLocalAudioLevel(e.participant.audioLevel ?? 0);
+      } else {
+        attachAudio(e.participant);
+      }
+    });
 
     callObject.on('participant-left', (e) => {
       const audio = audioElements.get(e.participant.session_id);
@@ -71,6 +105,7 @@ export function initVoice() {
       btnVoice.disabled = false;
       btnVoice.textContent = 'Join Voice';
       btnMute.style.display = 'none';
+      handleLocalAudioLevel(0); // clear speaking state
       callObject.destroy();
       callObject = null;
     });

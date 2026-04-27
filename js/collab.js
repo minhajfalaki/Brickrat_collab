@@ -6,7 +6,10 @@ const peerSpheres = new Map(); // connectionId → Mesh
 let _lastPos = null, _lastRot = null;
 
 const sphereGeo = new THREE.SphereGeometry(0.25, 12, 8);
-const sphereMat = new THREE.MeshStandardMaterial({ color: 0xff6b35, roughness: 0.7 });
+const sphereMat = new THREE.MeshStandardMaterial({
+  color: 0xff6b35, roughness: 0.7,
+  emissive: new THREE.Color(0xffdd44), emissiveIntensity: 0
+});
 
 function getOrCreateRoomId() {
   const params = new URLSearchParams(window.location.search);
@@ -26,7 +29,7 @@ export function initCollab(scene) {
 
   const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
   const { room: r } = client.enterRoom(roomId, {
-    initialPresence: { position: null, rotation: null }
+    initialPresence: { position: null, rotation: null, speaking: false }
   });
   room = r;
 
@@ -51,8 +54,14 @@ export function initCollab(scene) {
         peerSpheres.set(other.connectionId, mesh);
       }
       mesh.position.set(p.x, p.y, p.z);
+      mesh.material.emissiveIntensity = other.presence?.speaking ? 1.0 : 0;
     }
   });
+}
+
+export function setSpeaking(isSpeaking) {
+  if (!room) return;
+  room.updatePresence({ speaking: isSpeaking });
 }
 
 export function broadcastPosition(camera) {
