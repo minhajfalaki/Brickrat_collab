@@ -50,6 +50,64 @@ function attachAudio(participant) {
   audio.play().catch(() => {});
 }
 
+export async function joinVoice() {
+  const domain  = window.CONFIG?.dailyDomain;
+  const roomId  = window.CONFIG?.dailyRoom;
+
+  const btnVoice  = document.getElementById('btnVoice');
+  const btnMute   = document.getElementById('btnMute');
+  const micDenied = document.getElementById('micDenied');
+
+  if (!domain || !roomId || callObject) return;
+
+  if (!window.Daily) {
+    if (micDenied) { micDenied.textContent = 'Voice SDK failed to load'; micDenied.style.display = 'block'; }
+    return;
+  }
+
+  // Pre-create and unlock audio element inside the gesture — required on Android/iOS
+  unlockedAudio = new Audio();
+  unlockedAudio.autoplay = true;
+  unlockedAudio.play().catch(() => {});
+
+  if (btnVoice) { btnVoice.disabled = true; btnVoice.textContent = 'Connecting…'; }
+  if (micDenied) micDenied.style.display = 'none';
+
+  callObject = window.Daily.createCallObject();
+
+  callObject.on('participant-joined',  (e) => attachAudio(e.participant));
+  callObject.on('track-started',       (e) => { if (!e.participant.local && e.track.kind === 'audio') attachAudio(e.participant); });
+  callObject.on('participant-updated', (e) => { if (!e.participant.local) attachAudio(e.participant); });
+  callObject.on('local-audio-level',   (e) => handleLocalAudioLevel(e.audioLevel ?? 0));
+
+  callObject.on('participant-left', (e) => {
+    const audio = audioElements.get(e.participant.session_id);
+    if (audio) { audio.srcObject = null; audioElements.delete(e.participant.session_id); }
+  });
+
+  callObject.on('camera-error', () => {
+    if (micDenied) { micDenied.textContent = 'Mic access denied'; micDenied.style.display = 'block'; }
+    if (btnVoice)  { btnVoice.style.display = 'block'; btnVoice.disabled = false; btnVoice.textContent = 'Join Voice'; }
+    if (btnMute)   btnMute.style.display = 'none';
+    handleLocalAudioLevel(0);
+    callObject.destroy();
+    callObject = null;
+  });
+
+  try {
+    await callObject.join({ url: `https://${domain}/${roomId}`, videoSource: false });
+    Object.values(callObject.participants()).forEach(attachAudio);
+    callObject.startLocalAudioLevelObserver(100);
+    if (btnVoice) btnVoice.style.display = 'none';
+    if (btnMute)  btnMute.style.display  = 'block';
+  } catch (e) {
+    console.error('[voice] join failed:', e);
+    if (micDenied) { micDenied.textContent = e.message || 'Failed to join voice'; micDenied.style.display = 'block'; }
+    if (btnVoice)  { btnVoice.disabled = false; btnVoice.textContent = 'Join Voice'; }
+    if (callObject) { callObject.destroy(); callObject = null; }
+  }
+}
+
 export function initVoice() {
   const domain = window.CONFIG?.dailyDomain;
   if (!domain) return;
@@ -57,70 +115,11 @@ export function initVoice() {
   const voiceControls = document.getElementById('voiceControls');
   const btnVoice      = document.getElementById('btnVoice');
   const btnMute       = document.getElementById('btnMute');
-  const micDenied     = document.getElementById('micDenied');
 
   if (!btnVoice) return;
   if (voiceControls) voiceControls.style.display = 'flex';
 
-  btnVoice.addEventListener('click', async () => {
-    const roomId = window.CONFIG?.dailyRoom;
-
-    if (!window.Daily) {
-      micDenied.textContent = 'Voice SDK failed to load';
-      micDenied.style.display = 'block';
-      return;
-    }
-    if (!roomId) return;
-
-    // Pre-create and unlock audio element inside the gesture — required on Android/iOS
-    unlockedAudio = new Audio();
-    unlockedAudio.autoplay = true;
-    unlockedAudio.play().catch(() => {});
-
-    btnVoice.disabled = true;
-    btnVoice.textContent = 'Connecting…';
-    micDenied.style.display = 'none';
-
-    callObject = window.Daily.createCallObject();
-
-    callObject.on('participant-joined', (e) => attachAudio(e.participant));
-    callObject.on('track-started',      (e) => { if (!e.participant.local && e.track.kind === 'audio') attachAudio(e.participant); });
-    callObject.on('participant-updated', (e) => { if (!e.participant.local) attachAudio(e.participant); });
-
-    callObject.on('local-audio-level',  (e) => handleLocalAudioLevel(e.audioLevel ?? 0));
-
-    callObject.on('participant-left', (e) => {
-      const audio = audioElements.get(e.participant.session_id);
-      if (audio) { audio.srcObject = null; audioElements.delete(e.participant.session_id); }
-    });
-
-    callObject.on('camera-error', () => {
-      micDenied.textContent = 'Mic access denied';
-      micDenied.style.display = 'block';
-      btnVoice.style.display = 'block';
-      btnVoice.disabled = false;
-      btnVoice.textContent = 'Join Voice';
-      btnMute.style.display = 'none';
-      handleLocalAudioLevel(0);
-      callObject.destroy();
-      callObject = null;
-    });
-
-    try {
-      await callObject.join({ url: `https://${domain}/${roomId}`, videoSource: false });
-      Object.values(callObject.participants()).forEach(attachAudio);
-      callObject.startLocalAudioLevelObserver(100);
-      btnVoice.style.display = 'none';
-      btnMute.style.display  = 'block';
-    } catch (e) {
-      console.error('[voice] join failed:', e);
-      micDenied.textContent = e.message || 'Failed to join voice';
-      micDenied.style.display = 'block';
-      btnVoice.disabled = false;
-      btnVoice.textContent = 'Join Voice';
-      if (callObject) { callObject.destroy(); callObject = null; }
-    }
-  });
+  btnVoice.addEventListener('click', () => joinVoice());
 
   btnMute.addEventListener('click', () => {
     if (!callObject) return;
@@ -131,6 +130,6 @@ export function initVoice() {
 
   window.addEventListener('keydown', e => {
     if (e.code !== 'KeyV') return;
-    if (callObject) { btnMute.click(); } else { btnVoice.click(); }
+    if (callObject) { btnMute.click(); } else { joinVoice(); }
   });
 }

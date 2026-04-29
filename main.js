@@ -241,6 +241,7 @@ window.addEventListener('resize', () => {
 // ------------------------------------------------------------
 let broadcastPosition = null;
 let _initVoice = null;
+let _joinVoice = null;
 let _initCollab = null;
 let _modelLoaded = false;
 let _voiceInited = false;
@@ -261,8 +262,9 @@ function parseRoomId(input) {
   }
 }
 
-import('./js/voice.js').then(({ initVoice }) => {
+import('./js/voice.js').then(({ initVoice, joinVoice }) => {
   _initVoice = initVoice;
+  _joinVoice = joinVoice;
 }).catch(err => console.warn('Voice unavailable:', err));
 
 import('./js/collab.js').then(({ initCollab, broadcastPosition: bp }) => {
@@ -315,6 +317,7 @@ function activateRoom(roomId) {
     if (shareRowEl) shareRowEl.style.display = 'flex';
     if (btnCreate)  btnCreate.style.display  = 'none';
     if (btnJoin)    btnJoin.style.display    = 'none';
+    if (_joinVoice) _joinVoice();
   }
 
   function onJoinCall(joinRowEl, btnCreate, btnJoin) {
@@ -329,6 +332,7 @@ function activateRoom(roomId) {
     setRoomId(id);
     if (shareRowEl) shareRowEl.style.display = 'flex';
     if (joinRowEl)  joinRowEl.style.display  = 'none';
+    if (_joinVoice) _joinVoice();
   }
 
   function onCopyLink(btn) {
