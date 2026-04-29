@@ -2,8 +2,7 @@ import * as THREE from '../lib/three/three.module.js';
 import { createClient } from 'https://esm.sh/@liveblocks/client@2';
 
 let room = null;
-let _client = null;
-let _roomId = null;
+let _leave = null;
 let _scene = null;
 
 const peerPins = new Map();  // connectionId → Group
@@ -26,10 +25,9 @@ function createPinMesh(color) {
   return mesh;
 }
 
-function setupRoom(scene, r, client, roomId) {
-  _scene  = scene;
-  _client = client;
-  _roomId = roomId;
+function setupRoom(scene, r, leave) {
+  _scene = scene;
+  _leave = leave;
   room = r;
 
   room.subscribe('others', (others) => {
@@ -64,10 +62,10 @@ function setupRoom(scene, r, client, roomId) {
 export function initCollab(scene, roomId) {
   if (!roomId) return;
   const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
-  const { room: r } = client.enterRoom(roomId, {
+  const { room: r, leave } = client.enterRoom(roomId, {
     initialPresence: { position: null, rotation: null, speaking: false }
   });
-  setupRoom(scene, r, client, roomId);
+  setupRoom(scene, r, leave);
 }
 
 // Joins a room only if someone else is already in it. Rejects after 4 s if empty.
@@ -76,7 +74,7 @@ export function tryJoinRoom(scene, roomId) {
     if (!roomId) { reject(new Error('No room ID')); return; }
 
     const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
-    const { room: r } = client.enterRoom(roomId, {
+    const { room: r, leave } = client.enterRoom(roomId, {
       initialPresence: { position: null, rotation: null, speaking: false }
     });
 
@@ -85,7 +83,7 @@ export function tryJoinRoom(scene, roomId) {
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      client.leaveRoom(roomId);
+      leave();
       reject(new Error('Room not found'));
     }, 4000);
 
@@ -93,7 +91,7 @@ export function tryJoinRoom(scene, roomId) {
       if (settled || others.length === 0) return;
       settled = true;
       clearTimeout(timer);
-      setupRoom(scene, r, client, roomId);
+      setupRoom(scene, r, leave);
       resolve();
     });
   });
@@ -104,9 +102,8 @@ export function leaveCollab() {
     if (_scene) _scene.remove(pin);
   }
   peerPins.clear();
-  if (_client && _roomId) _client.leaveRoom(_roomId);
-  _client = null;
-  _roomId = null;
+  if (_leave) _leave();
+  _leave = null;
   room = null;
 }
 
