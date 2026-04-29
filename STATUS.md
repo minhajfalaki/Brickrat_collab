@@ -13,7 +13,7 @@
 | Service worker | ✅ Fixed | `?room=` query params stripped before cache lookup |
 | Usernames | ❌ Not started | See Task 2 |
 
-**Timer is currently set to 2 minutes for testing.** Change `CALL_MAX_MS` in `main.js` back to `60 * 60 * 1000` for production.
+**Timer is set to 60 minutes.**
 
 ---
 
