@@ -251,7 +251,7 @@ let _voiceInited = false;
 let _sceneReady = false;
 let activeRoomId = null;
 
-const CALL_MAX_MS = 60 * 60 * 1000;
+const CALL_MAX_MS = 2 * 60 * 1000;
 const callTimerEl = document.getElementById('callTimer');
 let _callTimerInterval = null;
 let _callStart = null;
