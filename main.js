@@ -242,12 +242,52 @@ window.addEventListener('resize', () => {
 let broadcastPosition = null;
 let _initVoice = null;
 let _joinVoice = null;
+let _leaveVoice = null;
 let _initCollab = null;
 let _tryJoinRoom = null;
+let _leaveCollab = null;
 let _modelLoaded = false;
 let _voiceInited = false;
 let _sceneReady = false;
 let activeRoomId = null;
+
+const CALL_MAX_MS = 60 * 60 * 1000;
+const callTimerEl = document.getElementById('callTimer');
+let _callTimerInterval = null;
+let _callStart = null;
+
+function formatElapsed(ms) {
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function startCallTimer() {
+  if (_callTimerInterval) return;
+  _callStart = Date.now();
+  if (callTimerEl) { callTimerEl.textContent = '00:00'; callTimerEl.style.display = 'block'; }
+  _callTimerInterval = setInterval(() => {
+    const elapsed = Date.now() - _callStart;
+    if (callTimerEl) callTimerEl.textContent = formatElapsed(elapsed);
+    if (elapsed >= CALL_MAX_MS) endCall();
+  }, 1000);
+}
+
+function stopCallTimer() {
+  clearInterval(_callTimerInterval);
+  _callTimerInterval = null;
+  if (callTimerEl) callTimerEl.style.display = 'none';
+}
+
+function endCall() {
+  stopCallTimer();
+  if (_leaveVoice)  _leaveVoice();
+  if (_leaveCollab) _leaveCollab();
+  activeRoomId = null;
+  _voiceInited = false;
+  if (callTimerEl) { callTimerEl.textContent = 'Call ended'; callTimerEl.style.display = 'block'; }
+  setTimeout(() => { if (callTimerEl) callTimerEl.style.display = 'none'; }, 4000);
+}
 
 function generateRoomId() {
   return Math.random().toString(36).slice(2, 8);
@@ -263,14 +303,16 @@ function parseRoomId(input) {
   }
 }
 
-import('./js/voice.js').then(({ initVoice, joinVoice }) => {
+import('./js/voice.js').then(({ initVoice, joinVoice, leaveVoice }) => {
   _initVoice = initVoice;
   _joinVoice = joinVoice;
+  _leaveVoice = leaveVoice;
 }).catch(err => console.warn('Voice unavailable:', err));
 
-import('./js/collab.js').then(({ initCollab, tryJoinRoom, broadcastPosition: bp }) => {
+import('./js/collab.js').then(({ initCollab, tryJoinRoom, leaveCollab, broadcastPosition: bp }) => {
   _initCollab = initCollab;
   _tryJoinRoom = tryJoinRoom;
+  _leaveCollab = leaveCollab;
   broadcastPosition = bp;
   if (activeRoomId) initCollab(scene, activeRoomId);
 }).catch(err => console.warn('Collab unavailable:', err));
@@ -322,6 +364,7 @@ function activateRoom(roomId) {
     if (btnCreate)  btnCreate.style.display  = 'none';
     if (btnJoin)    btnJoin.style.display    = 'none';
     if (_joinVoice) _joinVoice();
+    startCallTimer();
   }
 
   function onJoinCall(joinRowEl, btnCreate, btnJoin, errorEl) {
@@ -353,6 +396,7 @@ function activateRoom(roomId) {
 
       if (_modelLoaded && !_voiceInited) { _voiceInited = true; if (_initVoice) _initVoice(); }
       if (_joinVoice) _joinVoice();
+      startCallTimer();
 
     } catch {
       btn.disabled = false;

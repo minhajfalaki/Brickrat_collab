@@ -123,6 +123,20 @@ export async function joinVoice() {
   }
 }
 
+export function leaveVoice() {
+  if (!callObject) return;
+  callObject.destroy();
+  callObject = null;
+  audioElements.forEach(a => { a.srcObject = null; });
+  audioElements.clear();
+  handleLocalAudioLevel(0);
+
+  const btnVoice  = document.getElementById('btnVoice');
+  const btnMute   = document.getElementById('btnMute');
+  if (btnVoice) { btnVoice.style.display = 'block'; btnVoice.disabled = false; btnVoice.textContent = 'Join Voice'; }
+  if (btnMute)  { btnMute.style.display = 'none'; btnMute.classList.remove('muted'); btnMute.textContent = 'Mute'; }
+}
+
 export function initVoice() {
   const domain = window.CONFIG?.dailyDomain;
   if (!domain) return;

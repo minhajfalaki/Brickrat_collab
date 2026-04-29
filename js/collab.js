@@ -2,6 +2,10 @@ import * as THREE from '../lib/three/three.module.js';
 import { createClient } from 'https://esm.sh/@liveblocks/client@2';
 
 let room = null;
+let _client = null;
+let _roomId = null;
+let _scene = null;
+
 const peerPins = new Map();  // connectionId → Group
 let _lastPos = null, _lastRot = null;
 
@@ -22,8 +26,12 @@ function createPinMesh(color) {
   return mesh;
 }
 
-function setupRoom(scene, r) {
+function setupRoom(scene, r, client, roomId) {
+  _scene  = scene;
+  _client = client;
+  _roomId = roomId;
   room = r;
+
   room.subscribe('others', (others) => {
     const activeIds = new Set(others.map(o => o.connectionId));
 
@@ -59,7 +67,7 @@ export function initCollab(scene, roomId) {
   const { room: r } = client.enterRoom(roomId, {
     initialPresence: { position: null, rotation: null, speaking: false }
   });
-  setupRoom(scene, r);
+  setupRoom(scene, r, client, roomId);
 }
 
 // Joins a room only if someone else is already in it. Rejects after 4 s if empty.
@@ -85,10 +93,21 @@ export function tryJoinRoom(scene, roomId) {
       if (settled || others.length === 0) return;
       settled = true;
       clearTimeout(timer);
-      setupRoom(scene, r);
+      setupRoom(scene, r, client, roomId);
       resolve();
     });
   });
+}
+
+export function leaveCollab() {
+  for (const [, pin] of peerPins) {
+    if (_scene) _scene.remove(pin);
+  }
+  peerPins.clear();
+  if (_client && _roomId) _client.leaveRoom(_roomId);
+  _client = null;
+  _roomId = null;
+  room = null;
 }
 
 export function setSpeaking(isSpeaking) {
