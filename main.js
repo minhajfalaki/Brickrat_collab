@@ -313,6 +313,7 @@ function activateRoom(roomId) {
   function onCreateCall(shareRowEl, btnCreate, btnJoin) {
     const id = generateRoomId();
     setRoomId(id);
+    history.replaceState(null, '', '?room=' + id);
     if (shareRowEl) shareRowEl.style.display = 'flex';
     if (btnCreate)  btnCreate.style.display  = 'none';
     if (btnJoin)    btnJoin.style.display    = 'none';
@@ -329,6 +330,7 @@ function activateRoom(roomId) {
     const id = parseRoomId(inputEl.value);
     if (!id) return;
     setRoomId(id);
+    history.replaceState(null, '', '?room=' + id);
     if (shareRowEl) shareRowEl.style.display = 'flex';
     if (joinRowEl)  joinRowEl.style.display  = 'none';
     if (_joinVoice) _joinVoice();
@@ -336,8 +338,7 @@ function activateRoom(roomId) {
 
   function onCopyLink(btn) {
     if (!activeRoomId) return;
-    const url = window.location.origin + window.location.pathname + '?room=' + activeRoomId;
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard.writeText(activeRoomId).then(() => {
       const orig = btn.textContent;
       btn.textContent = 'Copied!';
       setTimeout(() => { btn.textContent = orig; }, 1500);
