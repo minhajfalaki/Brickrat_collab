@@ -1,4 +1,4 @@
-const CACHE_NAME   = 'brickrat-v1';
+const CACHE_NAME   = 'brickrat-v2';
 const MODEL_CACHE  = 'brickrat-model-v1';
 const MODEL_URL    = 'https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/baked.glb';
 
@@ -45,21 +45,27 @@ async function modelCacheFirst(request) {
 }
 
 async function staleWhileRevalidate(event) {
-  const cache  = await caches.open(CACHE_NAME);
-  const cached = await cache.match(event.request);
+  const cache = await caches.open(CACHE_NAME);
+
+  // ?room= and other query params are client-side only — always serve the same shell
+  const cleanUrl = new URL(event.request.url);
+  cleanUrl.search = '';
+  const key = cleanUrl.toString();
+
+  const cached = await cache.match(key);
 
   if (cached) {
     // Serve from cache immediately; refresh in background
     event.waitUntil(
-      fetch(event.request)
-        .then(r => { if (r.ok) cache.put(event.request, r.clone()); })
+      fetch(key)
+        .then(r => { if (r.ok) cache.put(key, r.clone()); })
         .catch(() => {})
     );
     return cached;
   }
 
   // No cache yet — fetch, store, return
-  const response = await fetch(event.request);
-  if (response.ok) cache.put(event.request, response.clone());
+  const response = await fetch(key);
+  if (response.ok) cache.put(key, response.clone());
   return response;
 }
