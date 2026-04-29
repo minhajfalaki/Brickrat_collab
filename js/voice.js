@@ -53,6 +53,7 @@ function attachAudio(participant) {
 export async function joinVoice() {
   const domain  = window.CONFIG?.dailyDomain;
   const roomId  = window.CONFIG?.dailyRoom;
+  const apiKey  = window.CONFIG?.dailyApiKey;
 
   const btnVoice  = document.getElementById('btnVoice');
   const btnMute   = document.getElementById('btnMute');
@@ -63,6 +64,20 @@ export async function joinVoice() {
   if (!window.Daily) {
     if (micDenied) { micDenied.textContent = 'Voice SDK failed to load'; micDenied.style.display = 'block'; }
     return;
+  }
+
+  // Create the Daily.co room via REST API before joining.
+  // 200 = created, 409 = already exists — both are fine.
+  if (apiKey) {
+    try {
+      await fetch('https://api.daily.co/v1/rooms', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: roomId })
+      });
+    } catch (e) {
+      console.warn('[voice] room pre-create failed:', e);
+    }
   }
 
   // Pre-create and unlock audio element inside the gesture — required on Android/iOS
