@@ -246,6 +246,7 @@ let _leaveVoice = null;
 let _initCollab = null;
 let _tryJoinRoom = null;
 let _leaveCollab = null;
+let _broadcastCallEnd = null;
 let _modelLoaded = false;
 let _voiceInited = false;
 let _sceneReady = false;
@@ -269,7 +270,7 @@ function startCallTimer() {
   _callTimerInterval = setInterval(() => {
     const elapsed = Date.now() - _callStart;
     if (callTimerEl) callTimerEl.textContent = formatElapsed(elapsed);
-    if (elapsed >= CALL_MAX_MS) endCall();
+    if (elapsed >= CALL_MAX_MS) endCall({ broadcast: true });
   }, 1000);
 }
 
@@ -279,12 +280,40 @@ function stopCallTimer() {
   if (callTimerEl) callTimerEl.style.display = 'none';
 }
 
-function endCall() {
+function endCall({ broadcast = false } = {}) {
   stopCallTimer();
+  if (broadcast && _broadcastCallEnd) _broadcastCallEnd();
   if (_leaveVoice)  _leaveVoice();
   if (_leaveCollab) _leaveCollab();
   activeRoomId = null;
   _voiceInited = false;
+
+  history.replaceState(null, '', location.pathname);
+
+  const _shareRow           = document.getElementById('shareRow');
+  const _shareRowModal      = document.getElementById('shareRowModal');
+  const _joinRow            = document.getElementById('joinRow');
+  const _joinRowModal       = document.getElementById('joinRowModal');
+  const _btnCreateCall      = document.getElementById('btnCreateCall');
+  const _btnJoinCall        = document.getElementById('btnJoinCall');
+  const _btnCreateCallModal = document.getElementById('btnCreateCallModal');
+  const _btnJoinCallModal   = document.getElementById('btnJoinCallModal');
+  const _roomIdDisplay      = document.getElementById('roomIdDisplay');
+  const _roomIdDisplayModal = document.getElementById('roomIdDisplayModal');
+  const _voiceControls      = document.getElementById('voiceControls');
+
+  if (_shareRow)           _shareRow.style.display           = 'none';
+  if (_shareRowModal)      _shareRowModal.style.display      = 'none';
+  if (_joinRow)            _joinRow.style.display            = 'none';
+  if (_joinRowModal)       _joinRowModal.style.display       = 'none';
+  if (_btnCreateCall)      _btnCreateCall.style.display      = '';
+  if (_btnJoinCall)        _btnJoinCall.style.display        = '';
+  if (_btnCreateCallModal) _btnCreateCallModal.style.display = '';
+  if (_btnJoinCallModal)   _btnJoinCallModal.style.display   = '';
+  if (_roomIdDisplay)      _roomIdDisplay.textContent        = '';
+  if (_roomIdDisplayModal) _roomIdDisplayModal.textContent   = '';
+  if (_voiceControls)      _voiceControls.style.display      = 'none';
+
   if (callTimerEl) { callTimerEl.textContent = 'Call ended'; callTimerEl.style.display = 'block'; }
   setTimeout(() => { if (callTimerEl) callTimerEl.style.display = 'none'; }, 4000);
 }
@@ -309,17 +338,18 @@ import('./js/voice.js').then(({ initVoice, joinVoice, leaveVoice }) => {
   _leaveVoice = leaveVoice;
 }).catch(err => console.warn('Voice unavailable:', err));
 
-import('./js/collab.js').then(({ initCollab, tryJoinRoom, leaveCollab, broadcastPosition: bp }) => {
+import('./js/collab.js').then(({ initCollab, tryJoinRoom, leaveCollab, broadcastPosition: bp, broadcastCallEnd }) => {
   _initCollab = initCollab;
   _tryJoinRoom = tryJoinRoom;
   _leaveCollab = leaveCollab;
+  _broadcastCallEnd = broadcastCallEnd;
   broadcastPosition = bp;
-  if (activeRoomId) initCollab(scene, activeRoomId);
+  if (activeRoomId) initCollab(scene, activeRoomId, () => endCall());
 }).catch(err => console.warn('Collab unavailable:', err));
 
 function activateRoom(roomId) {
   activeRoomId = roomId;
-  if (_initCollab) _initCollab(scene, roomId);
+  if (_initCollab) _initCollab(scene, roomId, () => endCall());
   if (_modelLoaded && !_voiceInited) {
     _voiceInited = true;
     if (_initVoice) _initVoice();
@@ -384,7 +414,7 @@ function activateRoom(roomId) {
     btn.textContent = 'Checking…';
 
     try {
-      await _tryJoinRoom(scene, id);
+      await _tryJoinRoom(scene, id, () => endCall());
 
       // Room validated — update state and UI
       activeRoomId = id;

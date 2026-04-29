@@ -9,7 +9,7 @@
 | Create Call flow | ✅ Working | Generates 6-char ID, URL updates to `?room=<id>` |
 | Join Call validation | ✅ Working | 4 s timeout — rejects if creator not present |
 | Call timer | ✅ Working | Visible top-left, orange monospace |
-| Auto-disconnect at limit | ⚠️ Partial | Services disconnect but UI doesn't fully reset (see Task 1) |
+| Auto-disconnect at limit | ✅ Working | All users disconnected via broadcast; UI fully resets |
 | Service worker | ✅ Fixed | `?room=` query params stripped before cache lookup |
 | Usernames | ❌ Not started | See Task 2 |
 

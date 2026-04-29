@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@liveblocks/client@2';
 let room = null;
 let _leave = null;
 let _scene = null;
+let _onCallEnd = null;
 
 const peerPins = new Map();  // connectionId → Group
 let _lastPos = null, _lastRot = null;
@@ -29,6 +30,10 @@ function setupRoom(scene, r, leave) {
   _scene = scene;
   _leave = leave;
   room = r;
+
+  room.subscribe('event', ({ event }) => {
+    if (event?.type === 'call:end' && _onCallEnd) _onCallEnd();
+  });
 
   room.subscribe('others', (others) => {
     const activeIds = new Set(others.map(o => o.connectionId));
@@ -59,8 +64,9 @@ function setupRoom(scene, r, leave) {
   });
 }
 
-export function initCollab(scene, roomId) {
+export function initCollab(scene, roomId, onCallEnd) {
   if (!roomId) return;
+  _onCallEnd = onCallEnd || null;
   const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
   const { room: r, leave } = client.enterRoom(roomId, {
     initialPresence: { position: null, rotation: null, speaking: false }
@@ -69,9 +75,10 @@ export function initCollab(scene, roomId) {
 }
 
 // Joins a room only if someone else is already in it. Rejects after 4 s if empty.
-export function tryJoinRoom(scene, roomId) {
+export function tryJoinRoom(scene, roomId, onCallEnd) {
   return new Promise((resolve, reject) => {
     if (!roomId) { reject(new Error('No room ID')); return; }
+    _onCallEnd = onCallEnd || null;
 
     const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
     const { room: r, leave } = client.enterRoom(roomId, {
@@ -95,6 +102,11 @@ export function tryJoinRoom(scene, roomId) {
       resolve();
     });
   });
+}
+
+export function broadcastCallEnd() {
+  if (!room) return;
+  room.broadcastEvent({ type: 'call:end' });
 }
 
 export function leaveCollab() {
