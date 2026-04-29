@@ -22,15 +22,8 @@ function createPinMesh(color) {
   return mesh;
 }
 
-export function initCollab(scene, roomId) {
-  if (!roomId) return;
-
-  const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
-  const { room: r } = client.enterRoom(roomId, {
-    initialPresence: { position: null, rotation: null, speaking: false }
-  });
+function setupRoom(scene, r) {
   room = r;
-
   room.subscribe('others', (others) => {
     const activeIds = new Set(others.map(o => o.connectionId));
 
@@ -57,6 +50,44 @@ export function initCollab(scene, roomId) {
       pin.position.set(p.x, p.y, p.z);
       pin.userData.mat.emissiveIntensity = other.presence?.speaking ? 1.0 : 0;
     }
+  });
+}
+
+export function initCollab(scene, roomId) {
+  if (!roomId) return;
+  const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
+  const { room: r } = client.enterRoom(roomId, {
+    initialPresence: { position: null, rotation: null, speaking: false }
+  });
+  setupRoom(scene, r);
+}
+
+// Joins a room only if someone else is already in it. Rejects after 4 s if empty.
+export function tryJoinRoom(scene, roomId) {
+  return new Promise((resolve, reject) => {
+    if (!roomId) { reject(new Error('No room ID')); return; }
+
+    const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
+    const { room: r } = client.enterRoom(roomId, {
+      initialPresence: { position: null, rotation: null, speaking: false }
+    });
+
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      client.leaveRoom(roomId);
+      reject(new Error('Room not found'));
+    }, 4000);
+
+    r.subscribe('others', (others) => {
+      if (settled || others.length === 0) return;
+      settled = true;
+      clearTimeout(timer);
+      setupRoom(scene, r);
+      resolve();
+    });
   });
 }
 

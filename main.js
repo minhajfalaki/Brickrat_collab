@@ -243,6 +243,7 @@ let broadcastPosition = null;
 let _initVoice = null;
 let _joinVoice = null;
 let _initCollab = null;
+let _tryJoinRoom = null;
 let _modelLoaded = false;
 let _voiceInited = false;
 let _sceneReady = false;
@@ -267,8 +268,9 @@ import('./js/voice.js').then(({ initVoice, joinVoice }) => {
   _joinVoice = joinVoice;
 }).catch(err => console.warn('Voice unavailable:', err));
 
-import('./js/collab.js').then(({ initCollab, broadcastPosition: bp }) => {
+import('./js/collab.js').then(({ initCollab, tryJoinRoom, broadcastPosition: bp }) => {
   _initCollab = initCollab;
+  _tryJoinRoom = tryJoinRoom;
   broadcastPosition = bp;
   if (activeRoomId) initCollab(scene, activeRoomId);
 }).catch(err => console.warn('Collab unavailable:', err));
@@ -292,6 +294,7 @@ function activateRoom(roomId) {
   const btnCopyLink        = document.getElementById('btnCopyLink');
   const joinInput          = document.getElementById('joinInput');
   const btnDoJoin          = document.getElementById('btnDoJoin');
+  const joinError          = document.getElementById('joinError');
 
   const btnCreateCallModal = document.getElementById('btnCreateCallModal');
   const btnJoinCallModal   = document.getElementById('btnJoinCallModal');
@@ -301,6 +304,7 @@ function activateRoom(roomId) {
   const btnCopyLinkModal   = document.getElementById('btnCopyLinkModal');
   const joinInputModal     = document.getElementById('joinInputModal');
   const btnDoJoinModal     = document.getElementById('btnDoJoinModal');
+  const joinErrorModal     = document.getElementById('joinErrorModal');
 
   const callModal          = document.getElementById('callModal');
 
@@ -320,20 +324,41 @@ function activateRoom(roomId) {
     if (_joinVoice) _joinVoice();
   }
 
-  function onJoinCall(joinRowEl, btnCreate, btnJoin) {
+  function onJoinCall(joinRowEl, btnCreate, btnJoin, errorEl) {
     if (joinRowEl) joinRowEl.style.display = 'flex';
     if (btnCreate) btnCreate.style.display = 'none';
     if (btnJoin)   btnJoin.style.display   = 'none';
+    if (errorEl)   errorEl.style.display   = 'none';
   }
 
-  function onDoJoin(inputEl, shareRowEl, joinRowEl) {
+  async function onDoJoin(inputEl, shareRowEl, joinRowEl, errorEl, btn) {
     const id = parseRoomId(inputEl.value);
     if (!id) return;
-    setRoomId(id);
-    history.replaceState(null, '', '?room=' + id);
-    if (shareRowEl) shareRowEl.style.display = 'flex';
-    if (joinRowEl)  joinRowEl.style.display  = 'none';
-    if (_joinVoice) _joinVoice();
+
+    if (errorEl) errorEl.style.display = 'none';
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Checking…';
+
+    try {
+      await _tryJoinRoom(scene, id);
+
+      // Room validated — update state and UI
+      activeRoomId = id;
+      if (roomIdDisplay)      roomIdDisplay.textContent      = id;
+      if (roomIdDisplayModal) roomIdDisplayModal.textContent = id;
+      history.replaceState(null, '', '?room=' + id);
+      if (shareRowEl) shareRowEl.style.display = 'flex';
+      if (joinRowEl)  joinRowEl.style.display  = 'none';
+
+      if (_modelLoaded && !_voiceInited) { _voiceInited = true; if (_initVoice) _initVoice(); }
+      if (_joinVoice) _joinVoice();
+
+    } catch {
+      btn.disabled = false;
+      btn.textContent = origText;
+      if (errorEl) { errorEl.textContent = 'Room not found'; errorEl.style.display = 'block'; }
+    }
   }
 
   function onCopyLink(btn) {
@@ -351,11 +376,11 @@ function activateRoom(roomId) {
   });
   if (btnJoinCall) btnJoinCall.addEventListener('click', e => {
     e.stopPropagation();
-    onJoinCall(joinRow, btnCreateCall, btnJoinCall);
+    onJoinCall(joinRow, btnCreateCall, btnJoinCall, joinError);
   });
   if (btnDoJoin) btnDoJoin.addEventListener('click', e => {
     e.stopPropagation();
-    onDoJoin(joinInput, shareRow, joinRow);
+    onDoJoin(joinInput, shareRow, joinRow, joinError, btnDoJoin);
   });
   if (btnCopyLink) btnCopyLink.addEventListener('click', e => {
     e.stopPropagation();
@@ -366,9 +391,9 @@ function activateRoom(roomId) {
   if (btnCreateCallModal) btnCreateCallModal.addEventListener('click', () =>
     onCreateCall(shareRowModal, btnCreateCallModal, btnJoinCallModal));
   if (btnJoinCallModal) btnJoinCallModal.addEventListener('click', () =>
-    onJoinCall(joinRowModal, btnCreateCallModal, btnJoinCallModal));
+    onJoinCall(joinRowModal, btnCreateCallModal, btnJoinCallModal, joinErrorModal));
   if (btnDoJoinModal) btnDoJoinModal.addEventListener('click', () =>
-    onDoJoin(joinInputModal, shareRowModal, joinRowModal));
+    onDoJoin(joinInputModal, shareRowModal, joinRowModal, joinErrorModal, btnDoJoinModal));
   if (btnCopyLinkModal) btnCopyLinkModal.addEventListener('click', () =>
     onCopyLink(btnCopyLinkModal));
 

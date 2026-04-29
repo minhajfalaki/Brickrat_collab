@@ -505,9 +505,12 @@
           <span id="roomIdDisplay" style="font-family:monospace;font-size:15px;font-weight:600;letter-spacing:0.08em;"></span>
           <button id="btnCopyLink" class="call-ui-btn">Copy ID</button>
         </div>
-        <div id="joinRow" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;">
-          <input id="joinInput" class="call-ui-input" placeholder="Paste room ID or link">
-          <button id="btnDoJoin" class="call-ui-btn">Join</button>
+        <div id="joinRow" style="display:none;flex-direction:column;gap:8px;align-items:center;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;">
+            <input id="joinInput" class="call-ui-input" placeholder="Paste room ID">
+            <button id="btnDoJoin" class="call-ui-btn">Join</button>
+          </div>
+          <span id="joinError" style="display:none;font-family:sans-serif;font-size:12px;color:rgba(255,110,110,0.95);"></span>
         </div>
       </div>
     </div>
@@ -603,9 +606,12 @@
         <span id="roomIdDisplayModal" style="font-family:monospace;font-size:15px;font-weight:600;letter-spacing:0.08em;"></span>
         <button id="btnCopyLinkModal" class="call-ui-btn">Copy ID</button>
       </div>
-      <div id="joinRowModal" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:12px;">
-        <input id="joinInputModal" class="call-ui-input" placeholder="Paste room ID or link">
-        <button id="btnDoJoinModal" class="call-ui-btn">Join</button>
+      <div id="joinRowModal" style="display:none;flex-direction:column;gap:8px;align-items:center;margin-top:12px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;">
+          <input id="joinInputModal" class="call-ui-input" placeholder="Paste room ID">
+          <button id="btnDoJoinModal" class="call-ui-btn">Join</button>
+        </div>
+        <span id="joinErrorModal" style="display:none;font-family:sans-serif;font-size:12px;color:rgba(255,110,110,0.95);"></span>
       </div>
     </div>
   </div>
