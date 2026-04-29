@@ -275,7 +275,6 @@ import('./js/collab.js').then(({ initCollab, broadcastPosition: bp }) => {
 
 function activateRoom(roomId) {
   activeRoomId = roomId;
-  window.CONFIG.dailyRoom = roomId;
   if (_initCollab) _initCollab(scene, roomId);
   if (_modelLoaded && !_voiceInited) {
     _voiceInited = true;
