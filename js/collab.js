@@ -12,8 +12,9 @@ let _lastPos = null, _lastRot = null;
 const PIN_COLORS = [0xee4444, 0x44cc55, 0x4499ff, 0xff8822]; // red, green, blue, orange
 
 function colorFromId(id) {
+  const s = String(id);
   let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) >>> 0;
   return PIN_COLORS[h % PIN_COLORS.length];
 }
 
