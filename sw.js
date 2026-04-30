@@ -1,4 +1,4 @@
-const CACHE_NAME   = 'brickrat-v2';
+const CACHE_NAME   = 'brickrat-v3';
 const MODEL_CACHE  = 'brickrat-model-v1';
 const MODEL_URL    = 'https://pub-4622c204bf054ed7ae6895e757c1af7f.r2.dev/baked.glb';
 
