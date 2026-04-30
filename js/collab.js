@@ -10,8 +10,12 @@ const peerPins = new Map();  // connectionId → Group
 let _lastPos = null, _lastRot = null;
 
 const PIN_COLORS = [0xee4444, 0x44cc55, 0x4499ff, 0xff8822]; // red, green, blue, orange
-let _colorIndex = 0;
-const peerColors = new Map(); // connectionId → color
+
+function colorFromId(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) >>> 0;
+  return PIN_COLORS[h % PIN_COLORS.length];
+}
 
 const sphereGeo = new THREE.SphereGeometry(0.19, 32, 24);
 
@@ -71,10 +75,7 @@ function setupRoom(scene, r, leave) {
 
       let pin = peerPins.get(other.connectionId);
       if (!pin) {
-        if (!peerColors.has(other.connectionId)) {
-          peerColors.set(other.connectionId, PIN_COLORS[_colorIndex++ % PIN_COLORS.length]);
-        }
-        pin = createPinMesh(peerColors.get(other.connectionId));
+        pin = createPinMesh(colorFromId(other.connectionId));
         const name = other.presence?.name || '';
         const sprite = makeNameSprite(name);
         pin.add(sprite);
