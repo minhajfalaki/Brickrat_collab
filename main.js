@@ -379,6 +379,8 @@ function activateRoom(roomId) {
   const joinErrorModal     = document.getElementById('joinErrorModal');
 
   const callModal          = document.getElementById('callModal');
+  const nameInput          = document.getElementById('nameInput');
+  const nameInputModal     = document.getElementById('nameInputModal');
 
   function setRoomId(id) {
     activateRoom(id);
@@ -446,6 +448,7 @@ function activateRoom(roomId) {
 
   if (btnCreateCall) btnCreateCall.addEventListener('click', e => {
     e.stopPropagation();
+    window._userName = (nameInput?.value || '').trim() || 'Guest';
     onCreateCall(shareRow, btnCreateCall, btnJoinCall);
   });
   if (btnJoinCall) btnJoinCall.addEventListener('click', e => {
@@ -454,6 +457,7 @@ function activateRoom(roomId) {
   });
   if (btnDoJoin) btnDoJoin.addEventListener('click', e => {
     e.stopPropagation();
+    window._userName = (nameInput?.value || '').trim() || 'Guest';
     onDoJoin(joinInput, shareRow, joinRow, joinError, btnDoJoin);
   });
   if (btnCopyLink) btnCopyLink.addEventListener('click', e => {
@@ -461,15 +465,21 @@ function activateRoom(roomId) {
     onCopyLink(btnCopyLink);
   });
   if (joinInput) joinInput.addEventListener('click', e => e.stopPropagation());
+  if (nameInput) nameInput.addEventListener('click', e => e.stopPropagation());
 
-  if (btnCreateCallModal) btnCreateCallModal.addEventListener('click', () =>
-    onCreateCall(shareRowModal, btnCreateCallModal, btnJoinCallModal));
+  if (btnCreateCallModal) btnCreateCallModal.addEventListener('click', () => {
+    window._userName = (nameInputModal?.value || '').trim() || 'Guest';
+    onCreateCall(shareRowModal, btnCreateCallModal, btnJoinCallModal);
+  });
   if (btnJoinCallModal) btnJoinCallModal.addEventListener('click', () =>
     onJoinCall(joinRowModal, btnCreateCallModal, btnJoinCallModal, joinErrorModal));
-  if (btnDoJoinModal) btnDoJoinModal.addEventListener('click', () =>
-    onDoJoin(joinInputModal, shareRowModal, joinRowModal, joinErrorModal, btnDoJoinModal));
+  if (btnDoJoinModal) btnDoJoinModal.addEventListener('click', () => {
+    window._userName = (nameInputModal?.value || '').trim() || 'Guest';
+    onDoJoin(joinInputModal, shareRowModal, joinRowModal, joinErrorModal, btnDoJoinModal);
+  });
   if (btnCopyLinkModal) btnCopyLinkModal.addEventListener('click', () =>
     onCopyLink(btnCopyLinkModal));
+  if (nameInputModal) nameInputModal.addEventListener('click', e => e.stopPropagation());
 
   if (btnCallFloat && callModal) {
     btnCallFloat.addEventListener('click', () => {

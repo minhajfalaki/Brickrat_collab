@@ -496,6 +496,7 @@
 
       <!-- Call UI -->
       <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.18);padding-top:16px;display:flex;flex-direction:column;gap:12px;align-items:center;">
+        <input id="nameInput" class="call-ui-input" placeholder="Your name" maxlength="20" style="width:160px;text-align:center;">
         <div style="display:flex;gap:8px;">
           <button id="btnCreateCall" class="call-ui-btn">Create Call</button>
           <button id="btnJoinCall" class="call-ui-btn">Join Call</button>
@@ -600,6 +601,7 @@
   <!-- Call modal (shown by JS when call button is tapped) -->
   <div id="callModal">
     <div class="call-modal-box">
+      <input id="nameInputModal" class="call-ui-input" placeholder="Your name" maxlength="20" style="width:160px;text-align:center;margin-bottom:12px;">
       <div style="display:flex;gap:8px;justify-content:center;">
         <button id="btnCreateCallModal" class="call-ui-btn">Create Call</button>
         <button id="btnJoinCallModal" class="call-ui-btn">Join Call</button>

@@ -26,6 +26,26 @@ function createPinMesh(color) {
   return mesh;
 }
 
+function makeNameSprite(name) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.roundRect(4, 4, 248, 56, 10);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, 128, 32);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(0.6, 0.15, 1);
+  sprite.position.set(0, -0.35, 0);
+  return sprite;
+}
+
 function setupRoom(scene, r, leave) {
   _scene = scene;
   _leave = leave;
@@ -55,8 +75,22 @@ function setupRoom(scene, r, leave) {
           peerColors.set(other.connectionId, PIN_COLORS[_colorIndex++ % PIN_COLORS.length]);
         }
         pin = createPinMesh(peerColors.get(other.connectionId));
+        const name = other.presence?.name || '';
+        const sprite = makeNameSprite(name);
+        pin.add(sprite);
+        pin.userData.nameSprite = sprite;
+        pin.userData.lastName = name;
         scene.add(pin);
         peerPins.set(other.connectionId, pin);
+      } else {
+        const name = other.presence?.name || '';
+        if (name !== pin.userData.lastName) {
+          if (pin.userData.nameSprite) pin.remove(pin.userData.nameSprite);
+          const sprite = makeNameSprite(name);
+          pin.add(sprite);
+          pin.userData.nameSprite = sprite;
+          pin.userData.lastName = name;
+        }
       }
       pin.position.set(p.x, p.y, p.z);
       pin.userData.mat.emissiveIntensity = other.presence?.speaking ? 1.0 : 0;
@@ -69,7 +103,7 @@ export function initCollab(scene, roomId, onCallEnd) {
   _onCallEnd = onCallEnd || null;
   const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
   const { room: r, leave } = client.enterRoom(roomId, {
-    initialPresence: { position: null, rotation: null, speaking: false }
+    initialPresence: { position: null, rotation: null, speaking: false, name: window._userName || '' }
   });
   setupRoom(scene, r, leave);
 }
@@ -82,7 +116,7 @@ export function tryJoinRoom(scene, roomId, onCallEnd) {
 
     const client = createClient({ publicApiKey: window.CONFIG.liveblocksPublicKey });
     const { room: r, leave } = client.enterRoom(roomId, {
-      initialPresence: { position: null, rotation: null, speaking: false }
+      initialPresence: { position: null, rotation: null, speaking: false, name: window._userName || '' }
     });
 
     let settled = false;
